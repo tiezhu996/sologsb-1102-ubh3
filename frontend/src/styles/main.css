@@ -189,6 +189,15 @@ body::before {
   padding: 8px 8px !important;
 }
 
+/* 连排对账：师傅同一时刻被排到两出戏的场次行 */
+.gb-row-conflict > .ant-table-cell {
+  background: rgba(207, 19, 34, 0.07) !important;
+}
+
+.gb-row-conflict:hover > .ant-table-cell {
+  background: rgba(207, 19, 34, 0.12) !important;
+}
+
 @media (max-width: 900px) {
   .gb-panel {
     padding: 12px;

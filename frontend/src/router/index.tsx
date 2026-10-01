@@ -1,5 +1,5 @@
 /**
- * 路由表：/plays、/plays/:id/scenes、/scenes/:id/roles、/scenes/:id/cues、/operators
+ * 路由表：/plays、/plays/:id/scenes、/scenes/:id/roles、/scenes/:id/cues、/operators、/rehearsal
  * 页面按路由懒加载，构建时自动分包。
  */
 import { Suspense, lazy, type ReactNode } from 'react';
@@ -12,6 +12,7 @@ const SceneBoard = lazy(() => import('../pages/SceneBoard'));
 const RoleAssign = lazy(() => import('../pages/RoleAssign'));
 const CueTimeline = lazy(() => import('../pages/CueTimeline'));
 const OperatorList = lazy(() => import('../pages/OperatorList'));
+const Rehearsal = lazy(() => import('../pages/Rehearsal'));
 
 /** 懒加载页面占位 */
 function RouteFallback() {
@@ -29,6 +30,7 @@ export const ROUTES = {
   roles: (sceneId: string): string => `/scenes/${sceneId}/roles`,
   cues: (sceneId: string): string => `/scenes/${sceneId}/cues`,
   operators: '/operators',
+  rehearsal: '/rehearsal',
 } as const;
 
 export const appRoutes: RouteObject[] = [
@@ -42,6 +44,7 @@ export const appRoutes: RouteObject[] = [
       { path: 'scenes/:id/roles', element: withSuspense(<RoleAssign />) },
       { path: 'scenes/:id/cues', element: withSuspense(<CueTimeline />) },
       { path: 'operators', element: withSuspense(<OperatorList />) },
+      { path: 'rehearsal', element: withSuspense(<Rehearsal />) },
       { path: '*', element: <Navigate to={ROUTES.plays} replace /> },
     ],
   },

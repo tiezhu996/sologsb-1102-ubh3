@@ -13,6 +13,10 @@ export const STORAGE_KEYS = {
   lastBackupAt: 'lastBackupAt',
   /** 场次页表头偏好（是否只看本次排练勾选） */
   sceneOnlySelected: 'sceneOnlySelected',
+  /** 连排对账：外班日程包待确认文本草稿（导入失败也保留，可修改后重试） */
+  rehearsalPackageDraft: 'rehearsalPackageDraft',
+  /** 连排对账：选中的剧目 id 列表（空数组表示全部剧目） */
+  rehearsalPlayFilter: 'rehearsalPlayFilter',
 } as const;
 
 export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS];

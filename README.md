@@ -41,6 +41,7 @@ docker compose up -d --build
 | 角色指派 | 登记全场影人角色（行当 / 需备影件 / 出场提示 / 唱白要点），为每个角色指派操耍人 |
 | 锣鼓点时间轴 | 按秒点插入急急风/四击头/水底鱼，选主奏乐器与领奏操耍人，刻度尺可点击定位、可试排播放 |
 | 操耍人档 | 维护技能标签（签子/连本/武打）与冲突时段，查看每人已派角色与累计排练时长，两两时段冲突对比 |
+| 连排对账 | 巡演周跨剧目连排：把外班日程包文本（仅姓名+可到场时段）粘入待确认区导入，本地场序与场次时长推算每场起止，角色操耍人与锣鼓点领奏都算占用；缺到场记录标「待补」不当空闲，并红标同一时刻被排到两出戏的师傅 |
 
 **冲突拦截**：指派操耍人时，会依据该人已排时段与同场其他影人操耍人的时段做重叠判定，冲突的候选人在下拉中直接禁用并给出拦截原因；操耍人自身时段互相重叠也会高亮预警。
 
@@ -87,13 +88,13 @@ sologsb-1102/
     ├── nginx.conf              # SPA fallback（try_files）+ gzip
     ├── index.html / vite.config.ts / tsconfig.json / package.json
     └── src/
-        ├── types/              # play.ts scene.ts role.ts operator.ts cue.ts
-        ├── stores/             # playStore.ts sceneStore.ts operatorStore.ts（Zustand）
+        ├── types/              # play.ts scene.ts role.ts operator.ts cue.ts rehearsal.ts
+        ├── stores/             # playStore.ts sceneStore.ts operatorStore.ts rehearsalStore.ts（Zustand）
         ├── components/common/  # SceneCard.tsx AssigneePicker.tsx ProgressRing.tsx EmptyState.tsx
         ├── hooks/              # useSceneOrder.ts useOperatorConflict.ts
-        ├── pages/              # PlayList.tsx SceneBoard.tsx RoleAssign.tsx CueTimeline.tsx OperatorList.tsx
+        ├── pages/              # PlayList.tsx SceneBoard.tsx RoleAssign.tsx CueTimeline.tsx OperatorList.tsx Rehearsal.tsx
         ├── router/             # index.tsx（路由表 + 懒加载分包）
-        ├── utils/              # timecode.ts db.ts export.ts（另有 localStore/seed/uuid 辅助）
+        ├── utils/              # timecode.ts db.ts export.ts scheduleParser.ts rehearsalPlanner.ts（另有 localStore/seed/uuid/sessionConflicts 辅助）
         ├── styles/main.css     # 皮影暖纸底主题样式
         ├── App.tsx             # 布局与外层导航
         └── main.tsx            # 入口：ConfigProvider(zh_CN) + RouterProvider
@@ -108,6 +109,7 @@ sologsb-1102/
 | `/scenes/:id/roles` | 角色与操耍人指派 | ShadowRole、Operator |
 | `/scenes/:id/cues` | 锣鼓点时间轴 | PercussionCue、Scene |
 | `/operators` | 操耍人档与时段冲突 | Operator |
+| `/rehearsal` | 连排对账（外班日程包 + 跨剧目时间轴） | AvailabilityPackage、JointSession |
 
 ### 数据模型
 
@@ -118,12 +120,24 @@ sologsb-1102/
 | ShadowRole 影人角色 | `src/types/role.ts` | id、sceneId、name、roleType、propParts、entranceCue、lineNote、operatorId |
 | Operator 操耍人 | `src/types/operator.ts` | id、name、skillTags、busySlots、assignedRoleIds、rehearsalHours |
 | PercussionCue 锣鼓点 | `src/types/cue.ts` | id、sceneId、beatName、instrument、atSecond、leadOperator、note |
+| AvailabilityPackage 外班日程包 | `src/types/rehearsal.ts` | id、rawText、entries（姓名+星期+到场起止）、names、weekdays、warnings、active |
+| JointSession 连排场次 | `src/types/rehearsal.ts` | id、packageId、sceneId/playId 冗余、weekday、startMinute、endMinute、status、occupied、basisSignature、basisSnapshot |
+
+### 连排对账语义
+
+- **包只提供到场事实**：外班日程包文本仅解析「姓名、排练日（周一～周日）、可到场时段（HH:mm-HH:mm，兼容 8点半/至/到等写法）」；每行独立解析，认不出的行进 warnings 但不阻塞合法行；整包零条合法记录才算导入失败。
+- **本地决定每场起止**：同一剧目按本地场序首尾相接，场次时长决定起止分钟；跨剧目共用操耍人时，后排的戏自动避开已落位的戏。
+- **角色与领奏都算占用**：`ShadowRole.operatorId` 与 `PercussionCue.leadOperator` 合并为一场的占用人员（同人去重，标注「角色/领奏」）。
+- **缺记录 ≠ 空闲**：占用人员在某日没有到场记录，该日直接跳过；所有日子都因缺记录无法评估 → `pending`（待补到场）；有完整记录但窗口交不下或撞戏 → `blocked`（排不进）。
+- **包更新后的失效策略**：导入新包走单事务（旧包转历史 → 新包生效 → 旧包的未确认/待补/受阻场次作废重算）；**已确认场次原样保留**，带旧 `packageId` 与旧依据快照，若与新场次同一时刻撞同一人，在时间轴红标。
+- **本地依据变化**：每场保存依据签名（场序/时长/角色指派/领奏的规范化摘要）；进入对账页发现未确认场次签名过期即自动重算，已确认场次显示「依据旧包 / 本地依据已变」，撤销确认后才按新依据重算。
+- **草稿与原子写**：待确认文本存 localStorage，导入失败/刷新都保留可重试；所有写入在 Dexie 单事务内完成，失败整体回滚不留半套。
 
 ---
 
 ## 六、数据存储说明
 
-- **IndexedDB（Dexie）**：`src/utils/db.ts` 封装全部读写，数据库名 `gbshadowplay`，当前结构版本 **2**，并在 `version(2).upgrade()` 中提供升级迁移逻辑（补齐 `revision` 行修订号、兜底 `createdAt/updatedAt`）。
+- **IndexedDB（Dexie）**：`src/utils/db.ts` 封装全部读写，数据库名 `gbshadowplay`，当前结构版本 **3**（v3 新增 `availabilityPackages`、`jointSessions` 两张表，支持连排对账；旧库打开自动升级），并在 `version(2).upgrade()` 中提供历史升级迁移逻辑（补齐 `revision` 行修订号、兜底 `createdAt/updatedAt`）。
 - **localStorage**：`src/utils/localStore.ts` 统一封装界面偏好（最近打开的剧目、场次页「只看本次勾选」开关等）。
 - **首次打开**：数据库为空时自动灌入示例班社数据（3 出剧目 / 6 个场次 / 12 个影人角色 / 4 位操耍人 / 10 处锣鼓点），保证界面开箱即有内容可点。
 - **导入导出**：剧目库支持导出整库 JSON 存档、导入存档覆盖、以及重置为示例数据；操耍人档支持导出 CSV，剧目可导出排练通告 CSV。
