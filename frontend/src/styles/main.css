@@ -189,6 +189,15 @@ body::before {
   padding: 8px 8px !important;
 }
 
+/* 连排对账行：已确认（冻结旧依据）与依据已更新 */
+.gb-row-confirmed > .ant-table-cell {
+  background: #f2f8f4 !important;
+}
+
+.gb-row-dirty > .ant-table-cell {
+  background: #fdf6e8 !important;
+}
+
 @media (max-width: 900px) {
   .gb-panel {
     padding: 12px;

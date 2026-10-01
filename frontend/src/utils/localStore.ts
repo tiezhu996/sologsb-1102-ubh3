@@ -13,6 +13,8 @@ export const STORAGE_KEYS = {
   lastBackupAt: 'lastBackupAt',
   /** 场次页表头偏好（是否只看本次排练勾选） */
   sceneOnlySelected: 'sceneOnlySelected',
+  /** 连排对账「待确认区」日程包草稿（导入失败后保留，可原样重试） */
+  reconDraft: 'reconDraft',
 } as const;
 
 export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS];

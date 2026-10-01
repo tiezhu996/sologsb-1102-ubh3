@@ -7,6 +7,7 @@ import {
   ReadOutlined,
   SoundOutlined,
   TeamOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons';
 import { ROUTES } from './router';
 import { usePlayStore } from './stores/playStore';
@@ -17,6 +18,7 @@ const { Header, Sider, Content, Footer } = Layout;
 
 /** 侧边导航：按当前路径高亮，场次/角色/锣鼓点页复用当前剧目上下文 */
 function buildSelectedKey(pathname: string, currentPlayId: string | null): string {
+  if (pathname.startsWith('/reconcile')) return ROUTES.reconcile;
   if (pathname.startsWith('/operators')) return ROUTES.operators;
   if (pathname.startsWith('/plays/') && currentPlayId) return ROUTES.scenes(currentPlayId);
   return ROUTES.plays;
@@ -86,6 +88,7 @@ export default function App() {
                 disabled: !currentPlayId,
               },
               { key: ROUTES.operators, icon: <TeamOutlined />, label: '操耍人档' },
+              { key: ROUTES.reconcile, icon: <ThunderboltOutlined />, label: '连排对账' },
             ]}
           />
           <div style={{ padding: '12px 16px', color: 'rgba(242,223,184,0.6)', fontSize: 12 }}>
